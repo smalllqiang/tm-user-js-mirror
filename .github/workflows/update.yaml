@@ -1,0 +1,58 @@
+name: 自动刷新 jsDelivr 缓存
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'js/*.user.js'
+      - 'js/*.meta.js'
+
+jobs:
+  purge-jsdelivr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 需要完整历史来获取变更文件
+
+      - name: 获取变更的 JS 文件并刷新 CDN
+        run: |
+          # 获取本次推送变更的文件列表
+          changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '^js/.*\.(user|meta)\.js$' || true)
+          
+          if [ -z "$changed_files" ]; then
+            echo "没有匹配的 JS 文件变更"
+            exit 0
+          fi
+          
+          echo "检测到以下文件变更："
+          echo "$changed_files"
+          echo "---"
+          
+          # 遍历每个变更的文件并刷新缓存
+          for file in $changed_files; do
+            # 提取文件名（不含路径）
+            filename=$(basename "$file")
+            
+            # 构建 purge URL
+            purge_url="https://purge.jsdelivr.net/gh/${{ github.repository }}@main/${file}"
+            
+            echo "正在刷新: $filename"
+            echo "URL: $purge_url"
+            
+            # 发送 purge 请求
+            response=$(curl -s -w "\n%{http_code}" -X POST "$purge_url")
+            http_code=$(echo "$response" | tail -n 1)
+            body=$(echo "$response" | sed '$d')
+            
+            if [ "$http_code" = "200" ]; then
+              echo "✅ $filename 刷新成功"
+              echo "响应: $body"
+            else
+              echo "❌ $filename 刷新失败 (HTTP $http_code)"
+              echo "响应: $body"
+            fi
+            echo "---"
+          done
