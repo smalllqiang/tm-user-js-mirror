@@ -43,7 +43,7 @@ jobs:
             echo "URL: $purge_url"
             
             # 发送 purge 请求
-            response=$(curl -s -w "\n%{http_code}" -X POST "$purge_url")
+            response=$(curl -s -w "\n%{http_code}" -X GET "$purge_url")
             http_code=$(echo "$response" | tail -n 1)
             body=$(echo "$response" | sed '$d')
             
