@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.0.2
+// @version      0.0.3
 // @description  B站增強
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -9,6 +9,7 @@
 // @match        https://t.bilibili.com/*
 // @match        https://www.bilibili.com/video/*
 // @match        https://www.bilibili.com/list/watchlater/*
+// @match        https://space.bilibili.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=www.bilibili.com
 // @grant        none
 // @downloadURL  https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/Bilibili_enhance.user.js
@@ -24,6 +25,7 @@
         mainPage: /^https:\/\/www\.bilibili\.com\/(\?spm_id_from=[^&]*)?$/,
         tPage: /^https:\/\/t\.bilibili\.com\/.*/,
         videoPage: /^https:\/\/www\.bilibili\.com\/video\/.*/,
+        spacePage: /^https:\/\/space\.bilibili\.com\/.*/,
     };
 
     // 以下是CSS Selector
@@ -62,6 +64,12 @@
             "div.ad-report.right-bottom-banner",
             "div.ad-floor-exp.right-bottom-banner",
         ], // div.video-card-ad-small,div#slide_ad,div.slide-ad-exp:右側彈幕盒子下的小廣告 div.ad-report.left-banner, div.strip-ad.left-banner: tag下方 評論上方的廣告  div.ad-report.right-bottom-banner div.ad-floor-exp.right-bottom-banner: 推薦列表下的小盒子
+        hideVisibility: [...headerSelector.hideVisibility],
+        hideDisplay: [...headerSelector.hideDisplay],
+        monitor: [...headerSelector.monitor],
+    };
+    const spacePageSelector = {
+        remove: [...headerSelector.remove],
         hideVisibility: [...headerSelector.hideVisibility],
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
@@ -179,6 +187,18 @@
             }
             clearTPage();
             monitorNewNode(clearTPage, videoPageSelector.monitor);
+        } else if (patterns.spacePage.test(currentUrl)) {
+            biliEnhanceLog("這是個人主頁");
+
+            function clearTPage() {
+                removeElements(spacePageSelector.remove);
+                hideElementsVisibility(spacePageSelector.hideVisibility);
+                hideElementsDisplay(spacePageSelector.hideDisplay);
+                clearSearchInput();
+                biliEnhanceLog("清除");
+            }
+            clearTPage();
+            monitorNewNode(clearTPage, spacePageSelector.monitor);
         }
     }, 2000);
 })();
