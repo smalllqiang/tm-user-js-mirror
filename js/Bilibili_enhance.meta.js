@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.0.3
+// @version      0.0.4
 // @description  B站增強
 // @author       sq
 // @match        https://www.bilibili.com/

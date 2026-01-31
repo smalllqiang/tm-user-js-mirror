@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.0.3
+// @version      0.0.4
 // @description  B站增強
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -49,7 +49,7 @@
     };
     const tPageSelector = {
         remove: [...headerSelector.remove],
-        hideVisibility: [...headerSelector.hideVisibility, "aside.right"], // 右邊欄社區中心,熱搜
+        hideVisibility: [...headerSelector.hideVisibility, "aside.right", "div.bili-dyn-sidebar"], // 右邊欄社區中心,熱搜  右側小按鈕"回到舊版"
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
     };
