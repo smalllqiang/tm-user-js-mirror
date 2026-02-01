@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mediawiki IPE
-// @namespace    Mediawiki IPE
-// @version      0.0.3
+// @namespace    https://github.com/smalllqiang
+// @version      0.0.4
 // @description  Mediawiki使用IPE工具
 // @author       dragon-fish, sq修改
 // @match        newmoon.click/*

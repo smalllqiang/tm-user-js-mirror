@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mediawiki IPE NEXT
-// @namespace    Mediawiki IPE NEXT
-// @version      0.0.3
+// @namespace    https://github.com/smalllqiang
+// @version      0.0.4
 // @description  Mediawiki使用IPE Next工具
 // @author       dragon-fish, sq修改
 // @match        newmoon.click/*
