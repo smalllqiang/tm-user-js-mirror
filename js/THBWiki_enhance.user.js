@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         THBWiki Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.0.1
+// @version      0.0.2
 // @description  THBWiki增強
 // @author       sq
 // @match        https://thwiki.cc/*
@@ -49,6 +49,7 @@
             try {
                 let thbExtTab = document.querySelector(thbExtTabSelector);
                 thbExtTab.style.display = "none";
+                thbEnhanceLog("已清除THB擴展的tab");
             } catch (error) {
                 thbEnhanceLog(error);
             }
