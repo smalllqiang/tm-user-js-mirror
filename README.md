@@ -10,3 +10,4 @@ Tampermonkey用戶腳本鏡像.
 - [X媒體下載器](https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/X_media_downloader.user.js)
 - [能不能好好說話](https://lab.magiconch.com/nbnhhsh/nbnhhsh.user.js)
 - [Bilibili增強](https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/Bilibili_enhance.user.js)
+- [QQ外鏈自動跳轉](https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/QQ_external_link_auto_jump.user.js)
