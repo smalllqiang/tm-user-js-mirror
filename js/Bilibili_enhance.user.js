@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.0.4
+// @version      0.0.5
 // @description  B站增強
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -10,6 +10,7 @@
 // @match        https://www.bilibili.com/video/*
 // @match        https://www.bilibili.com/list/watchlater/*
 // @match        https://space.bilibili.com/*
+// @match        https://message.bilibili.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=www.bilibili.com
 // @grant        none
 // @downloadURL  https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/Bilibili_enhance.user.js
@@ -25,7 +26,9 @@
         mainPage: /^https:\/\/www\.bilibili\.com\/(\?spm_id_from=[^&]*)?$/,
         tPage: /^https:\/\/t\.bilibili\.com\/.*/,
         videoPage: /^https:\/\/www\.bilibili\.com\/video\/.*/,
+        wlPage: /^https:\/\/www\.bilibili\.com\/list\/watchlater\/.*/,
         spacePage: /^https:\/\/space\.bilibili\.com\/.*/,
+        msgPage: /^https:\/\/message\.bilibili\.com\/.*/,
     };
 
     // 以下是CSS Selector
@@ -49,7 +52,11 @@
     };
     const tPageSelector = {
         remove: [...headerSelector.remove],
-        hideVisibility: [...headerSelector.hideVisibility, "aside.right", "div.bili-dyn-sidebar"], // 右邊欄社區中心,熱搜  右側小按鈕"回到舊版"
+        hideVisibility: [
+            ...headerSelector.hideVisibility,
+            "aside.right",
+            "div.bili-dyn-sidebar",
+        ], // 右邊欄社區中心,熱搜  右側小按鈕"回到舊版"
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
     };
@@ -69,6 +76,12 @@
         monitor: [...headerSelector.monitor],
     };
     const spacePageSelector = {
+        remove: [...headerSelector.remove],
+        hideVisibility: [...headerSelector.hideVisibility],
+        hideDisplay: [...headerSelector.hideDisplay],
+        monitor: [...headerSelector.monitor],
+    };
+    const msgPageSelector = {
         remove: [...headerSelector.remove],
         hideVisibility: [...headerSelector.hideVisibility],
         hideDisplay: [...headerSelector.hideDisplay],
@@ -178,27 +191,39 @@
         } else if (patterns.videoPage.test(currentUrl)) {
             biliEnhanceLog("這是普通視頻播放頁");
 
-            function clearTPage() {
+            function clearVideoPage() {
                 removeElements(videoPageSelector.remove);
                 hideElementsVisibility(videoPageSelector.hideVisibility);
                 hideElementsDisplay(videoPageSelector.hideDisplay);
                 clearSearchInput();
                 biliEnhanceLog("清除");
             }
-            clearTPage();
-            monitorNewNode(clearTPage, videoPageSelector.monitor);
+            clearVideoPage();
+            monitorNewNode(clearVideoPage, videoPageSelector.monitor);
         } else if (patterns.spacePage.test(currentUrl)) {
             biliEnhanceLog("這是個人主頁");
 
-            function clearTPage() {
+            function clearSpacePage() {
                 removeElements(spacePageSelector.remove);
                 hideElementsVisibility(spacePageSelector.hideVisibility);
                 hideElementsDisplay(spacePageSelector.hideDisplay);
                 clearSearchInput();
                 biliEnhanceLog("清除");
             }
-            clearTPage();
-            monitorNewNode(clearTPage, spacePageSelector.monitor);
+            clearSpacePage();
+            monitorNewNode(clearSpacePage, spacePageSelector.monitor);
+        } else if (patterns.msgPage.test(currentUrl)) {
+            biliEnhanceLog("這是消息中心頁面");
+
+            function clearMsgPage() {
+                removeElements(msgPageSelector.remove);
+                hideElementsVisibility(msgPageSelector.hideVisibility);
+                hideElementsDisplay(msgPageSelector.hideDisplay);
+                clearSearchInput();
+                biliEnhanceLog("清除");
+            }
+            clearMsgPage();
+            monitorNewNode(clearMsgPage, msgPageSelector.monitor);
         }
     }, 2000);
 })();
