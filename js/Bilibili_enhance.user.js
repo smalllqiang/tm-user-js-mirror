@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.0.5
+// @version      0.6.0
 // @description  B站增強
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -71,6 +71,12 @@
             "div.ad-report.right-bottom-banner",
             "div.ad-floor-exp.right-bottom-banner",
         ], // div.video-card-ad-small,div#slide_ad,div.slide-ad-exp:右側彈幕盒子下的小廣告 div.ad-report.left-banner, div.strip-ad.left-banner: tag下方 評論上方的廣告  div.ad-report.right-bottom-banner div.ad-floor-exp.right-bottom-banner: 推薦列表下的小盒子
+        hideVisibility: [...headerSelector.hideVisibility],
+        hideDisplay: [...headerSelector.hideDisplay],
+        monitor: [...headerSelector.monitor],
+    };
+    const wlPageSelector = {
+        remove: [...headerSelector.remove],
         hideVisibility: [...headerSelector.hideVisibility],
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
@@ -200,6 +206,18 @@
             }
             clearVideoPage();
             monitorNewNode(clearVideoPage, videoPageSelector.monitor);
+        } else if (patterns.wlPage.test(currentUrl)) {
+            biliEnhanceLog("這是稍後播放頁");
+
+            function clearWlPage() {
+                removeElements(wlPageSelector.remove);
+                hideElementsVisibility(wlPageSelector.hideVisibility);
+                hideElementsDisplay(wlPageSelector.hideDisplay);
+                clearSearchInput();
+                biliEnhanceLog("清除");
+            }
+            clearWlPage();
+            monitorNewNode(clearWlPage, wlPageSelector.monitor);
         } else if (patterns.spacePage.test(currentUrl)) {
             biliEnhanceLog("這是個人主頁");
 
