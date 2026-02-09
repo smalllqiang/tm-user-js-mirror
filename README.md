@@ -13,3 +13,4 @@ Tampermonkey用戶腳本鏡像.
 - [QQ外鏈自動跳轉](https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/QQ_external_link_auto_jump.user.js)
 - [THB增強](https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/THBWiki_enhance.user.js)
 - [wplace自動化腳本](https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js)
+- [片假名終結者](https://update.greasyfork.org/scripts/33268/Katakana%20Terminator.user.js)
