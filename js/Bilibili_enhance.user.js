@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.6.0
+// @version      0.6.1
 // @description  B站增強
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -243,5 +243,5 @@
             clearMsgPage();
             monitorNewNode(clearMsgPage, msgPageSelector.monitor);
         }
-    }, 2000);
+    }, 3500);
 })();
