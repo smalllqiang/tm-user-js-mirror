@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.7.0
+// @version      0.7.1
 // @description  Bilibili頁面淨化
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -9,6 +9,7 @@
 // @match        https://t.bilibili.com/*
 // @match        https://www.bilibili.com/video/*
 // @match        https://www.bilibili.com/list/watchlater/*
+// @match        https://www.bilibili.com/watchlater/list*
 // @match        https://space.bilibili.com/*
 // @match        https://message.bilibili.com/*
 // @match        https://search.bilibili.com/*
