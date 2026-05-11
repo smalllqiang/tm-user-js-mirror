@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.7.1
+// @version      0.7.2
 // @description  Bilibili頁面淨化
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -44,11 +44,12 @@
     const mainPageSelector = {
         remove: [
             ...headerSelector.remove,
-            "main.bili-feed4-layout",
-            "div.header-channel",
-            "div.palette-button-outer.palette-feed4",
-            "div.right-channel-container",
-        ], // main.bili-feed4-layout:主內容流  div.header-channel:往下滑後頂部會出現的欄目  div.palette-button-outer.palette-feed4:右下一些按鈕  div.right-channel-container:banner下方右側內容
+            "main.bili-feed4-layout", // 主內容流
+            "div.header-channel", // 往下滑後頂部會出現的欄目
+            "div.palette-button-outer.palette-feed4", // 右下一些按鈕
+            "div.right-channel-container", // 下方右側內容
+            "div.palette-button-adcard.is-bottom", // 下方卡片广告
+        ],
         hideVisibility: [...headerSelector.hideVisibility],
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
