@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.7.2
+// @version      0.7.3
 // @description  Bilibili頁面淨化
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -37,7 +37,13 @@
     // 以下是CSS Selector
     const headerSelector = {
         remove: ["div.vip-entry-containter"], // 鼠標放在右上角用戶頭像彈出的東西裏大會員續費提示
-        hideVisibility: ["div.vip-wrap", "ul.left-entry"], // div.vip-wrap:右上大會員  ul.left-entry:頂部左側內容
+        hideVisibility: [
+            // 右上大會員
+            "div.vip-wrap",
+            "div.vip-entry",
+            //頂部左側內容
+            "div.left-entry",
+        ],
         hideDisplay: ["div.trending"], // 搜索欄熱榜
         monitor: ["div.trending", "div.vip-entry-containter"], // div.trending:搜索欄熱榜  div.vip-entry-containter:鼠標放在右上角用戶頭像彈出的東西裏大會員續費提示
     };
