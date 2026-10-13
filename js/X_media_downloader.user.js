@@ -1,7 +1,13 @@
 // ==UserScript==
-// @name         X媒體下載器
-// @version      1.4.5
-// @description  一鍵下載 X/Twitter 的圖片、影片和 GIF，預設設定下以使用者 ID 和貼文 ID 儲存。您可以自訂檔案的檔案名稱。在 iPhone/Android 上，透過使用 ZIP 檔案，您還可以一鍵下載附加的媒體。下載歷史記錄與書籤同步。此外，可以選擇利用 X/Twitter 的書籤功能來實現在線同步下載歷史記錄。sq edition
+// @name         X/Twitter メディア一括ダウンローダー（iPhone/Android 対応)
+// @name:en      One-Click X/Twitter Media Downloader (Android/iPhone support)
+// @name:zh-CN   X/Twitter 媒体批量下载器 (支持 iPhone/Android)
+// @name:zh-TW   X/Twitter 媒體批量下載器 (支援 iPhone/Android)
+// @version      1.5.2
+// @description  X/Twitterの画像、動画、GIFをワンクリックでダウンロードします。標準ではユーザーIDとポストIDで保存されますが、追加される設定画面からファイル名や日時フォーマットを自由に変更可能です。iPhoneやAndroid環境でもZIP集約により複数メディアを一括ダウンロードできます。ダウンロード履歴のローカル保存に加え、オプションでXのブックマーク機能を利用したオンライン同期にも対応しています。sq 改訂バージョン。
+// @description:en   Download images, videos, and GIFs from X/Twitter with one click. By default, files are saved using the User ID and Post ID, but filenames and date formats can be freely customized via the integrated settings menu. Supports ZIP archiving for bulk downloads on iPhone and Android. In addition to local history tracking, it optionally features online synchronization using X's bookmark feature. sq edition.
+// @description:zh-CN 一键下载 X/Twitter 的图片、视频和 GIF。默认以用户 ID 和帖子 ID 保存，可通过集成的设置页面自由自定义文件名和日期格式。支持在 iPhone 和 Android 上通过 ZIP 压缩一键批量下载媒体。除本地保存下载历史记录外，还支持选择利用 X 的书签功能实现跨设备在线同步。sq 修改版。
+// @description:zh-TW 一鍵下載 X/Twitter 的圖片、影片和 GIF。預設以使用者 ID 和貼文 ID 儲存，可透過整合的設定頁面自由自訂檔案名稱與日期格式。支援在 iPhone 和 Android 上透過 ZIP 壓縮一鍵批次下載媒體。除本機儲存下載歷史紀錄外，還支援選擇利用 X 的書籤功能實現跨裝置線上同步。sq 修改版。
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js
 // @require      https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js
 // @require      https://cdn.jsdelivr.net/npm/dayjs@1.11.13/plugin/utc.js
@@ -10,13 +16,13 @@
 // @match        https://twitter.com/*
 // @match        https://x.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitter.com
-// @connect      raw.githubusercontent.com
 // @connect      twitter.com
 // @connect      x.com
 // @connect      pbs.twimg.com
 // @connect      video.twimg.com
 // @grant        GM_xmlhttpRequest
 // @namespace    https://greasyfork.org/users/1441951
+// @homepage     https://x.com/Azuki_0147
 // @downloadURL  https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/X_media_downloader.user.js
 // @updateURL    https://cdn.jsdelivr.net/gh/smalllqiang/tm-user-js-mirror@main/js/X_media_downloader.meta.js
 // ==/UserScript==
@@ -31,47 +37,44 @@ dayjs.extend(dayjs_plugin_utc);
 (function () {
     "use strict";
 
-    // === User Settings ===
-    /**
-    /**
-     * Set whether to enable the online synchronization of download history using bookmarks.
-     *
-     * false (default): Disables online synchronization for download history. Download history is managed locally per browser.
-     * true: Change this to true to enable online synchronization. Performing a download will add the tweet to your bookmarks, and already bookmarked tweets will be skipped. The history will be synchronized across devices via bookmarks.
-     */
+    localStorage.removeItem("twitterInternalApiInfo");
+    localStorage.removeItem("twitterApiInfoLastUpdateDate");
 
-    const enableDownloadHistorykSync = false; // Change this to true to enable online synchronization for download history.
+    let enableDownloadHistorySync =
+        localStorage.getItem("twdl_enableSync") === "true";
 
-    // === Filename generation function (User-editable) ===
-    /**
-     * Function to generate filenames.
-     * You can customize the filename format by editing formattedPostTime and the return line as needed.
-     *
-     * Caution: Please avoid using invalid characters in filenames.
-     *
-     * Default filename format: userId_postId-mediaTypeSequentialNumber.extension
-     *
-     * Elements available for filenames (filenameElements):
-     *   - userName: Username
-     *   - userId: User ID
-     *   - postId: Post ID
-     *   - postTime: Post time (ISO 8601 format). You can change the default format YYYYMMDD_HHmmss. See dayjs documentation (https://day.js.org/docs/en/display/format) for details.
-     *   - mediaTypeLabel: Media type (img, video, gif)
-     *   - index: Sequential number (for multiple media)
-     */
+    let filenameFormat = (
+        localStorage.getItem("twdl_filenameFormat") ||
+        "{userId}-{postId}-{mediaType}{index}"
+    ).replace(/\.?{ext}$/, "");
+
+    let postTimeFormat =
+        localStorage.getItem("twdl_postTimeFormat") || "YYYYMMDD_HHmmss";
+
+    let downloadMode = localStorage.getItem("twdl_downloadMode") || "blob";
 
     const generateFilename = (filenameElements, mediaTypeLabel, index, ext) => {
         const { userId, userName, postId, postTime } = filenameElements;
-        const formattedPostTime = dayjs(postTime).format("YYYYMMDD_HHmmss"); // Edit this line
-        return `${userId}_${postId}-${formattedPostTime}-img${index}.${ext}`; // Edit this line
+
+        const formattedPostTime = dayjs(postTime).format(postTimeFormat);
+
+        const baseName = filenameFormat
+            .replace(/{userId}/g, userId)
+            .replace(/{userName}/g, userName)
+            .replace(/{postId}/g, postId)
+            .replace(/{postTime}/g, formattedPostTime)
+            .replace(/{mediaType}/g, mediaTypeLabel)
+            .replace(/{index}/g, index);
+
+        return `${baseName}.${ext}`;
     };
 
     const gmFetch = (infoOrUrl, options = {}) =>
         new Promise((resolve, reject) => {
             const info =
-                typeof infoOrUrl === "string"
-                    ? { url: infoOrUrl }
-                    : { ...infoOrUrl };
+                typeof infoOrUrl === "string" ?
+                    { url: infoOrUrl }
+                :   { ...infoOrUrl };
 
             info.method = options.method || info.method || "GET";
             info.headers = options.headers || info.headers || {};
@@ -86,11 +89,16 @@ dayjs.extend(dayjs_plugin_utc);
                     json: () => Promise.resolve(res.response),
                     text: () =>
                         Promise.resolve(
-                            typeof res.response === "string"
-                                ? res.response
-                                : JSON.stringify(res.response),
+                            typeof res.response === "string" ?
+                                res.response
+                            :   JSON.stringify(res.response),
                         ),
-                    blob: () => Promise.resolve(new Blob([res.response])),
+                    blob: () => {
+                        if (res.response instanceof Blob) {
+                            return Promise.resolve(res.response);
+                        }
+                        return Promise.resolve(new Blob([res.response]));
+                    },
                 });
             };
             info.onerror = (error) => {
@@ -107,100 +115,6 @@ dayjs.extend(dayjs_plugin_utc);
 
             GM_xmlhttpRequest(info);
         });
-
-    const API_INFO_STORAGE_KEY = "twitterInternalApiInfo";
-    const LAST_UPDATE_DATE_STORAGE_KEY = "twitterApiInfoLastUpdateDate";
-    const API_DOC_URL =
-        "https://raw.githubusercontent.com/fa0311/TwitterInternalAPIDocument/refs/heads/master/docs/json/API.json";
-
-    let currentApiInfo = null;
-
-    const loadApiInfoFromLocalStorage = () => {
-        const savedApiInfoJson = localStorage.getItem(API_INFO_STORAGE_KEY);
-        if (savedApiInfoJson) {
-            try {
-                const savedInfo = JSON.parse(savedApiInfoJson);
-                return savedInfo;
-            } catch (e) {
-                localStorage.removeItem(API_INFO_STORAGE_KEY);
-            }
-        }
-        return null;
-    };
-
-    const fetchAndSaveApiInfo = async (currentDateString) => {
-        try {
-            const response = await gmFetch(API_DOC_URL, {
-                method: "GET",
-                responseType: "json",
-            });
-
-            if (response.ok) {
-                const apiDoc = response.response;
-
-                const tweetResultByRestIdInfo =
-                    apiDoc.graphql?.TweetResultByRestId;
-                const bookmarkSearchTimelineInfo =
-                    apiDoc.graphql?.BookmarkSearchTimeline;
-                const bearerTokenFromDoc = apiDoc.header?.authorization;
-
-                if (
-                    tweetResultByRestIdInfo?.url &&
-                    tweetResultByRestIdInfo?.features &&
-                    bookmarkSearchTimelineInfo?.url &&
-                    bookmarkSearchTimelineInfo?.features &&
-                    bearerTokenFromDoc
-                ) {
-                    const extractedApiInfo = {
-                        TweetResultByRestId: tweetResultByRestIdInfo,
-                        BookmarkSearchTimeline: bookmarkSearchTimelineInfo,
-                        bearerToken: bearerTokenFromDoc,
-                    };
-
-                    currentApiInfo = extractedApiInfo;
-                    localStorage.setItem(
-                        API_INFO_STORAGE_KEY,
-                        JSON.stringify(currentApiInfo),
-                    );
-                    localStorage.setItem(
-                        LAST_UPDATE_DATE_STORAGE_KEY,
-                        currentDateString,
-                    );
-                } else {
-                    const savedInfoBeforeFetch = loadApiInfoFromLocalStorage();
-                    if (savedInfoBeforeFetch)
-                        currentApiInfo = savedInfoBeforeFetch;
-                }
-            } else {
-                const savedInfoBeforeFetch = loadApiInfoFromLocalStorage();
-                if (savedInfoBeforeFetch) currentApiInfo = savedInfoBeforeFetch;
-            }
-        } catch (error) {
-            const savedInfoBeforeFetch = loadApiInfoFromLocalStorage();
-            if (savedInfoBeforeFetch) currentApiInfo = savedInfoBeforeFetch;
-        }
-    };
-
-    const initializeApiInfo = () => {
-        const lastUpdateDate = localStorage.getItem(
-            LAST_UPDATE_DATE_STORAGE_KEY,
-        );
-        const today = dayjs().format("YYYY-MM-DD");
-
-        const savedApiInfo = loadApiInfoFromLocalStorage();
-
-        if (lastUpdateDate !== today || !savedApiInfo) {
-            if (savedApiInfo) {
-                currentApiInfo = savedApiInfo;
-            } else {
-            }
-            fetchAndSaveApiInfo(today);
-        } else {
-            currentApiInfo = savedApiInfo;
-        }
-    };
-
-    initializeApiInfo();
 
     const DB_NAME = "DownloadHistoryDB";
     const DB_VERSION = 1;
@@ -338,7 +252,7 @@ dayjs.extend(dayjs_plugin_utc);
             url.includes("video.twimg.com/amplify_video/")
         ) {
             let ext = "mp4";
-            if (!url.includes("pbs.twimg.com/tweet_video/")) {
+            if (!url.includes("video.twimg.com/tweet_video/")) {
                 const pathMatch = url.split("?")[0].match(/\.([a-zA-Z0-9]+)$/);
                 if (pathMatch) ext = pathMatch[1];
             }
@@ -399,9 +313,7 @@ dayjs.extend(dayjs_plugin_utc);
         };
 
         const apiUrl = `https://x.com/i/api/graphql/${TWEET_RESULT_BY_REST_ID_QUERY_ID}/TweetResultByRestId`;
-        const url = encodeURI(
-            `${apiUrl}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(TWEET_DETAIL_FEATURES)}&fieldToggles=${JSON.stringify(TWEET_DETAIL_FIELD_TOGGLES)}`,
-        );
+        const url = `${apiUrl}?variables=${encodeURIComponent(JSON.stringify(variables))}&features=${encodeURIComponent(JSON.stringify(TWEET_DETAIL_FEATURES))}&fieldToggles=${encodeURIComponent(JSON.stringify(TWEET_DETAIL_FIELD_TOGGLES))}`;
 
         const headers = createApiHeaders();
         if (!headers) {
@@ -416,7 +328,7 @@ dayjs.extend(dayjs_plugin_utc);
     };
 
     const fetchBookmarkSearchTimeline = async (userId, postTime) => {
-        const BOOKMARK_SEARCH_TIMELINE_QUERY_ID = "6u3VcFdASPZrP2wkuU3C3A"; // 確認済みの新しいqueryId
+        const BOOKMARK_SEARCH_TIMELINE_QUERY_ID = "6u3VcFdASPZrP2wkuU3C3A";
 
         const BOOKMARK_SEARCH_FEATURES = {
             rweb_video_screen_enabled: false,
@@ -465,9 +377,7 @@ dayjs.extend(dayjs_plugin_utc);
         const variables = { rawQuery: rawQuery, count: 20 };
 
         const apiUrl = `https://x.com/i/api/graphql/${BOOKMARK_SEARCH_TIMELINE_QUERY_ID}/BookmarkSearchTimeline`;
-        const url = encodeURI(
-            `${apiUrl}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(BOOKMARK_SEARCH_FEATURES)}`,
-        );
+        const url = `${apiUrl}?variables=${encodeURIComponent(JSON.stringify(variables))}&features=${encodeURIComponent(JSON.stringify(BOOKMARK_SEARCH_FEATURES))}`;
 
         const headers = createApiHeaders();
         if (!headers) {
@@ -495,17 +405,266 @@ dayjs.extend(dayjs_plugin_utc);
     .tmd-down.loading svg g.loading {animation: spin 1s linear infinite !important; transform-box: fill-box; transform-origin: center;}
     @keyframes spin {0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);}}
     .tweet-detail-action-item {width: 20% !important;}
+ 
+    /* 設定モーダル用CSS (ライトモード/デフォルト) */
+    #twdl-settings-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+    #twdl-settings-content { background: #ffffff; color: #0f1419; border-radius: 16px; padding: 24px; width: 90%; max-width: 480px; box-shadow: 0 0 15px rgba(0,0,0,0.2); font-family: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .twdl-modal-header { font-size: 20px; font-weight: bold; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .twdl-close-btn { cursor: pointer; font-size: 24px; padding: 5px; line-height: 1; border-radius: 50%; width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; }
+    .twdl-close-btn:hover { background: rgba(15, 20, 25, 0.1); }
+    .twdl-input-field { width: 100%; padding: 10px; border: 1px solid #cfd9de; border-radius: 4px; box-sizing: border-box; background: transparent; color: inherit; margin-top: 8px; font-size: 15px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
+ 
+    /* Xの htmlタグの color-scheme に連動してダークモードUIを適用 */
+    html[style*="color-scheme: dark"] #twdl-settings-content { background: rgb(22, 24, 28); color: #e7e9ea; }
+    html[style*="color-scheme: dark"] .twdl-close-btn:hover { background: rgba(255, 255, 255, 0.1); }
+    html[style*="color-scheme: dark"] .twdl-input-field { border-color: #38444d; color: #e7e9ea; }
+ 
+    /* 設定メニューのホバーエフェクト */
+    a[data-testid="twdlSettingsLink"] { transition: background-color 0.2s; }
+    html[style*="color-scheme: light"] a[data-testid="twdlSettingsLink"]:hover { background-color: rgb(247, 249, 249) !important; }
+    html[style*="color-scheme: dark"] a[data-testid="twdlSettingsLink"]:hover { background-color: rgb(22, 24, 28) !important; }
     `;
     const newStyle = document.createElement("style");
     newStyle.id = "twdlcss";
     newStyle.innerHTML = twdlcss;
     document.head.parentNode.insertBefore(newStyle, document.head);
 
+    const openSettingsModal = () => {
+        if (document.getElementById("twdl-settings-modal")) return;
+
+        const modal = document.createElement("div");
+        modal.id = "twdl-settings-modal";
+
+        const lang = getCurrentLanguage();
+        const titleText =
+            lang === "ja" ? "メディアダウンローダー設定" : (
+                "Media Downloader Settings"
+            );
+
+        modal.innerHTML = `
+            <div id="twdl-settings-content">
+                <div class="twdl-modal-header">
+                    <span>${titleText}</span>
+                    <div class="twdl-close-btn">&times;</div>
+                </div>
+ 
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 15px;">
+                        <input type="checkbox" id="twdl-sync-checkbox" ${enableDownloadHistorySync ? "checked" : ""} style="margin: 0 12px 0 0; width: 18px; height: 18px;">
+                        <span>${lang === "ja" ? "ブックマークを利用した履歴の同期を有効にする" : "Enable online history sync using bookmarks"}</span>
+                    </label>
+                </div>
+ 
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 15px;">
+                        <input type="checkbox" id="twdl-downloadmode-checkbox" ${downloadMode === "dataurl" ? "checked" : ""} style="margin: 0 12px 0 0; width: 18px; height: 18px;">
+                        <span>${lang === "ja" ? "iOSでData URL形式のダウンロードを強制する（旧仕様）" : "Force Data URL download on iOS (Legacy)"}</span>
+                    </label>
+                </div>
+ 
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size: 15px; font-weight: bold;">
+                        ${lang === "ja" ? "日時のフォーマット (dayjs形式)" : "Date/Time Format (dayjs)"}
+                    </label>
+                    <input type="text" id="twdl-posttime-input" class="twdl-input-field" value="${postTimeFormat}">
+                    <div style="font-size: 12px; color: #536471; margin-top: 6px; line-height: 1.4;">
+                        ${lang === "ja" ? "例: YYYYMMDD_HHmmss" : "Ex: YYYYMMDD_HHmmss"}
+                    </div>
+                </div>
+ 
+                <div style="margin-bottom: 24px;">
+                    <label style="font-size: 15px; font-weight: bold;">
+                        ${lang === "ja" ? "ファイル名のフォーマット" : "Filename Format"}
+                    </label>
+                    <div style="display: flex; align-items: center; margin-top: 8px;">
+                        <input type="text" id="twdl-filename-input" class="twdl-input-field" style="margin-top: 0; flex: 1;" value="${filenameFormat}">
+                        <span style="margin-left: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important; color: #536471;">.ext</span>
+                    </div>
+                    <div style="font-size: 12px; color: #536471; margin-top: 6px; line-height: 1.4;">
+                        ${lang === "ja" ? "変数: {userId}, {userName}, {postId}, {postTime}, {mediaType}, {index}" : "Variables: {userId}, {userName}, {postId}, {postTime}, {mediaType}, {index}"}
+                    </div>
+                </div>
+ 
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button id="twdl-export-btn" style="padding: 12px; background: #1DA1F2; color: white; border: none; border-radius: 9999px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; font-family: inherit;">
+                        ${lang === "ja" ? "履歴データをエクスポート" : "Export History Data"}
+                    </button>
+                    <button id="twdl-import-btn" style="padding: 12px; background: transparent; border: 1px solid #1DA1F2; color: #1DA1F2; border-radius: 9999px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; font-family: inherit;">
+                        ${lang === "ja" ? "履歴データをインポート" : "Import History Data"}
+                    </button>
+                    <input type="file" id="twdl-file-input" accept=".json" style="display: none;">
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal
+            .querySelector(".twdl-close-btn")
+            .addEventListener("click", () => modal.remove());
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        modal
+            .querySelector("#twdl-sync-checkbox")
+            .addEventListener("change", (e) => {
+                enableDownloadHistorySync = e.target.checked;
+                localStorage.setItem(
+                    "twdl_enableSync",
+                    enableDownloadHistorySync,
+                );
+            });
+
+        modal
+            .querySelector("#twdl-downloadmode-checkbox")
+            .addEventListener("change", (e) => {
+                downloadMode = e.target.checked ? "dataurl" : "blob";
+                localStorage.setItem("twdl_downloadMode", downloadMode);
+            });
+
+        modal
+            .querySelector("#twdl-posttime-input")
+            .addEventListener("input", (e) => {
+                postTimeFormat = e.target.value;
+                localStorage.setItem("twdl_postTimeFormat", postTimeFormat);
+            });
+
+        modal
+            .querySelector("#twdl-filename-input")
+            .addEventListener("input", (e) => {
+                filenameFormat = e.target.value;
+                localStorage.setItem("twdl_filenameFormat", filenameFormat);
+            });
+
+        modal
+            .querySelector("#twdl-export-btn")
+            .addEventListener("click", async () => {
+                try {
+                    const ids = await getDownloadedPostIdsIndexedDB();
+                    const blob = new Blob([JSON.stringify(ids)], {
+                        type: "application/json",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `twdl_history_${dayjs().format("YYYYMMDD_HHmmss")}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error("Export Error:", err);
+                    alert(
+                        lang === "ja" ? "エクスポートに失敗しました" : (
+                            "Export failed"
+                        ),
+                    );
+                }
+            });
+
+        const fileInput = modal.querySelector("#twdl-file-input");
+        modal
+            .querySelector("#twdl-import-btn")
+            .addEventListener("click", () => {
+                fileInput.click();
+            });
+
+        fileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const importedIds = JSON.parse(event.target.result);
+                    if (!Array.isArray(importedIds))
+                        throw new Error("Invalid JSON format");
+
+                    const db = await openDB();
+                    const transaction = db.transaction(STORE_NAME, "readwrite");
+                    const store = transaction.objectStore(STORE_NAME);
+
+                    let addedCount = 0;
+                    importedIds.forEach((id) => {
+                        if (!downloadedPostsCache.has(id)) {
+                            store.put({ postId: id });
+                            downloadedPostsCache.add(id);
+                            addedCount++;
+                        }
+                    });
+
+                    transaction.oncomplete = () => {
+                        alert(
+                            lang === "ja" ?
+                                `インポート完了: 新たに ${addedCount} 件の履歴を追加しました`
+                            :   `Import Complete: Added ${addedCount} new records`,
+                        );
+                        fileInput.value = "";
+                    };
+                } catch (err) {
+                    console.error("Import Error:", err);
+                    alert(
+                        lang === "ja" ?
+                            "インポート失敗: 正しいJSONファイルを選択してください"
+                        :   "Import Failed: Please select a valid JSON file",
+                    );
+                }
+            };
+            reader.readAsText(file);
+        });
+    };
+
+    const injectSettingsMenu = () => {
+        if (!window.location.pathname.startsWith("/settings")) return;
+
+        const helpCenterLink = document.querySelector(
+            'a[data-testid="helpCenterLink"]',
+        );
+        if (!helpCenterLink) return;
+
+        if (document.querySelector('a[data-testid="twdlSettingsLink"]')) return;
+
+        const settingsLink = helpCenterLink.cloneNode(true);
+
+        settingsLink.setAttribute("data-testid", "twdlSettingsLink");
+        settingsLink.href = "#";
+
+        const textSpan = settingsLink.querySelector("span");
+        if (textSpan) {
+            textSpan.textContent =
+                getCurrentLanguage() === "ja" ? "メディアダウンローダー設定" : (
+                    "Media Downloader Settings"
+                );
+        }
+
+        const svgIcon = settingsLink.querySelector("svg");
+        if (svgIcon) {
+            svgIcon.innerHTML = `<g><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.93,0-3.5-1.57-3.5-3.5 s1.57-3.5,3.5-3.5s3.5,1.57,3.5,3.5S13.93,15.6,12,15.6z" fill="currentColor"></path></g>`;
+        }
+
+        settingsLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openSettingsModal();
+        });
+
+        const wrapperDiv = document.createElement("div");
+        wrapperDiv.className = "css-175oi2r";
+        wrapperDiv.setAttribute("data-testid", "activeRoute");
+        wrapperDiv.appendChild(settingsLink);
+
+        const parentDiv = helpCenterLink.parentElement;
+        if (parentDiv) {
+            parentDiv.insertBefore(wrapperDiv, helpCenterLink);
+        }
+    };
+
     const getNoImageMessage = () => {
         const lang = getCurrentLanguage();
-        return lang === "ja"
-            ? "このツイートには画像または動画がありません！"
-            : "There is no image or video in this tweet!";
+        return lang === "ja" ?
+                "このツイートには画像または動画がありません！"
+            :   "There is no image or video in this tweet!";
     };
 
     const getAlreadyBookmarkedMessage = () => {
@@ -536,7 +695,8 @@ dayjs.extend(dayjs_plugin_utc);
         ).filter(
             (img) =>
                 !img.closest("div[tabindex='0'][role='link']") &&
-                !img.closest("div[data-testid='previewInterstitial']"),
+                !img.closest("div[data-testid='previewInterstitial']") &&
+                !img.closest("div[data-testid='videoPlayer']"),
         );
 
         const videoCandidates_videoTag = Array.from(
@@ -562,7 +722,11 @@ dayjs.extend(dayjs_plugin_utc);
         );
         videoCandidates_imgTag.forEach((img) => {
             if (img.closest("div[tabindex='0'][role='link']")) return;
-            if (!img.closest("div[data-testid='previewInterstitial']")) return;
+            if (
+                !img.closest("div[data-testid='previewInterstitial']") &&
+                !img.closest("div[data-testid='videoPlayer']")
+            )
+                return;
             if (
                 img.src.startsWith("https://pbs.twimg.com/tweet_video_thumb/")
             ) {
@@ -597,11 +761,9 @@ dayjs.extend(dayjs_plugin_utc);
             userName = "";
             userNameContainer.querySelectorAll("*").forEach((el) => {
                 userName +=
-                    el.nodeName === "IMG"
-                        ? el.alt
-                        : el.nodeName === "SPAN"
-                          ? el.textContent
-                          : "";
+                    el.nodeName === "IMG" ? el.alt
+                    : el.nodeName === "SPAN" ? el.textContent
+                    : "";
             });
             userName = userName.trim();
         }
@@ -617,9 +779,9 @@ dayjs.extend(dayjs_plugin_utc);
     const getMediaURLs = async (cell, filenameElements) => {
         const mediaElems = getValidMediaElements(cell);
         const imageURLs = mediaElems.images.map((img) =>
-            img.src.includes("name=")
-                ? img.src.replace(/name=.*/gi, "name=4096x4096")
-                : img.src,
+            img.src.includes("name=") ?
+                img.src.replace(/name=.*/gi, "name=4096x4096")
+            :   img.src,
         );
         let gifURLs = mediaElems.gifs.map((gif) => gif.src);
         let videoURLs = [];
@@ -662,9 +824,9 @@ dayjs.extend(dayjs_plugin_utc);
                                 )
                                 .reduce(
                                     (prev, current) =>
-                                        prev.bitrate > current.bitrate
-                                            ? prev
-                                            : current,
+                                        prev.bitrate > current.bitrate ?
+                                            prev
+                                        :   current,
                                     media.video_info.variants[0],
                                 )?.url,
                     )
@@ -698,10 +860,12 @@ dayjs.extend(dayjs_plugin_utc);
                                             )
                                             .reduce(
                                                 (prev, current) =>
-                                                    prev.bitrate >
-                                                    current.bitrate
-                                                        ? prev
-                                                        : current,
+                                                    (
+                                                        prev.bitrate >
+                                                        current.bitrate
+                                                    ) ?
+                                                        prev
+                                                    :   current,
                                                 media.video_info.variants[0],
                                             )?.url,
                                 )
@@ -717,7 +881,7 @@ dayjs.extend(dayjs_plugin_utc);
     };
 
     const checkBookmarkStatus = async (userId, postId, postTime) => {
-        if (!enableDownloadHistorykSync) return false;
+        if (!enableDownloadHistorySync) return false;
 
         try {
             const bookmarkData = await fetchBookmarkSearchTimeline(
@@ -756,7 +920,7 @@ dayjs.extend(dayjs_plugin_utc);
     };
 
     const clickBookmarkButton = (cell) => {
-        if (!enableDownloadHistorykSync) return;
+        if (!enableDownloadHistorySync) return;
         const btn_group = cell.querySelector(
             'div[role="group"]:last-of-type, ul.tweet-actions, ul.tweet-detail-actions',
         );
@@ -770,16 +934,17 @@ dayjs.extend(dayjs_plugin_utc);
 
     const waitForBookmarkStateChange = (cell) => {
         return new Promise((resolve) => {
-            if (!enableDownloadHistorykSync && !isAppleMobile) {
+            if (!enableDownloadHistorySync && !isAppleMobile) {
                 resolve();
                 return;
             }
             const btn_group = cell.querySelector(
                 'div[role="group"]:last-of-type, ul.tweet-actions, ul.tweet-detail-actions',
             );
-            const bookmarkButton = btn_group
-                ? btn_group.querySelector('button[data-testid="bookmark"]')
-                : null;
+            const bookmarkButton =
+                btn_group ?
+                    btn_group.querySelector('button[data-testid="bookmark"]')
+                :   null;
             if (!bookmarkButton) {
                 resolve();
                 return;
@@ -793,16 +958,29 @@ dayjs.extend(dayjs_plugin_utc);
                         if (
                             bookmarkButton.dataset.testid === "removeBookmark"
                         ) {
-                            observer.disconnect();
+                            cleanup();
                             setTimeout(() => resolve(), 500);
                         }
                     }
                 }
             });
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
+
+            const timeoutId = setTimeout(() => {
+                console.warn(
+                    "waitForBookmarkStateChange: Timeout waiting for bookmark state change.",
+                );
+                cleanup();
+                resolve();
+            }, 10000);
+
+            const cleanup = () => {
+                observer.disconnect();
+                clearTimeout(timeoutId);
+            };
+
+            observer.observe(bookmarkButton, {
                 attributes: true,
+                attributeFilter: ["data-testid"],
             });
         });
     };
@@ -823,58 +1001,80 @@ dayjs.extend(dayjs_plugin_utc);
         cell,
         bookmarkPromise,
     ) => {
-        const files = {};
-        const filenames = blobs.map((_, index) => {
-            const mediaInfo = getMediaInfoFromUrl(mediaURLs[index]);
-            return generateFilename(
-                filenameElements,
-                mediaInfo.typeLabel,
-                index + 1,
-                mediaInfo.ext,
-            );
-        });
-        const uint8Arrays = await Promise.all(
-            blobs.map((blob) => blobToUint8Array(blob)),
-        );
-        uint8Arrays.forEach((uint8Array, index) => {
-            files[filenames[index]] = uint8Array;
-        });
-
-        const zipData = await new Promise((resolve, reject) => {
-            fflate.zip(files, { level: 0 }, (err, zipData) => {
-                if (err) {
-                    console.error("ZIP archive creation failed:", err);
-                    alert("ZIPファイルの作成に失敗しました。");
-                    reject(err);
-                } else {
-                    resolve(zipData);
-                }
+        try {
+            const files = {};
+            const filenames = blobs.map((_, index) => {
+                const mediaInfo = getMediaInfoFromUrl(mediaURLs[index]);
+                return generateFilename(
+                    filenameElements,
+                    mediaInfo.typeLabel,
+                    index + 1,
+                    mediaInfo.ext,
+                );
             });
-        });
+            const uint8Arrays = await Promise.all(
+                blobs.map(async (blob) => {
+                    return await blobToUint8Array(blob);
+                }),
+            );
+            uint8Arrays.forEach((uint8Array, index) => {
+                files[filenames[index]] = uint8Array;
+            });
 
-        const zipBlob = new Blob([zipData], { type: "application/zip" });
-        const a = document.createElement("a");
-        a.download = generateFilename(filenameElements, "medias", "", "zip");
+            const zipData = await new Promise((resolve, reject) => {
+                fflate.zip(files, { level: 0 }, (err, zipData) => {
+                    if (err) {
+                        console.error("ZIP archive creation failed:", err);
+                        reject(err);
+                    } else {
+                        resolve(zipData);
+                    }
+                });
+            });
 
-        if (enableDownloadHistorykSync && isAppleMobile) {
-            clickBookmarkButton(cell);
-            await bookmarkPromise;
-        }
+            const zipBlob = new Blob([zipData], { type: "application/zip" });
+            console.log(
+                `[TMD] downloadZipArchive: ZIP生成完了。総サイズ: ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`,
+            );
+            const a = document.createElement("a");
+            a.download = generateFilename(
+                filenameElements,
+                "medias",
+                "",
+                "zip",
+            );
 
-        if (isAppleMobile) {
-            const dataUrl = await blobToDataURL(zipBlob);
-            a.href = dataUrl;
-        } else {
-            const blobUrl = URL.createObjectURL(zipBlob);
-            a.href = blobUrl;
-        }
+            if (enableDownloadHistorySync && isAppleMobile) {
+                clickBookmarkButton(cell);
+                await bookmarkPromise;
+            }
 
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+            if (isAppleMobile && downloadMode === "dataurl") {
+                const dataUrl = await blobToDataURL(zipBlob);
+                a.href = dataUrl;
+            } else {
+                const blobUrl = URL.createObjectURL(zipBlob);
+                a.href = blobUrl;
+            }
 
-        if (!isAppleMobile && a.href.startsWith("blob:")) {
-            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            if (!isAppleMobile && a.href.startsWith("blob:")) {
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+            console.log(
+                "[TMD] downloadZipArchive: ZIP処理がすべて完了しました。",
+            );
+        } catch (error) {
+            console.error(
+                "[TMD] downloadZipArchive: エラーが発生しました:",
+                error,
+            );
+            alert(
+                "ZIPダウンロード処理中にエラーが発生しました。コンソールログをご確認ください。",
+            );
         }
     };
 
@@ -884,35 +1084,50 @@ dayjs.extend(dayjs_plugin_utc);
         cell,
         bookmarkPromise,
     ) => {
-        const a = document.createElement("a");
-        a.download = filename;
+        try {
+            const a = document.createElement("a");
+            a.download = filename;
 
-        if (enableDownloadHistorykSync && isAppleMobile) {
-            clickBookmarkButton(cell);
-            await bookmarkPromise;
-        }
+            if (enableDownloadHistorySync && isAppleMobile) {
+                clickBookmarkButton(cell);
+                await bookmarkPromise;
+            }
 
-        if (isAppleMobile) {
-            const dataUrl = await blobToDataURL(blob);
-            a.href = dataUrl;
-        } else {
-            const blobUrl = URL.createObjectURL(blob);
-            a.href = blobUrl;
-        }
+            if (isAppleMobile && downloadMode === "dataurl") {
+                const dataUrl = await blobToDataURL(blob);
+                a.href = dataUrl;
+            } else {
+                const blobUrl = URL.createObjectURL(blob);
+                a.href = blobUrl;
+            }
 
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
 
-        if (!isAppleMobile && a.href.startsWith("blob:")) {
-            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            if (!isAppleMobile && a.href.startsWith("blob:")) {
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            }
+            console.log(
+                "[TMD] downloadBlobAsFile: 単一ダウンロード処理が完了しました。",
+            );
+        } catch (error) {
+            console.error(
+                "[TMD] downloadBlobAsFile: エラーが発生しました:",
+                error,
+            );
+            alert(
+                "ダウンロード処理中にエラーが発生しました。コンソールログをご確認ください。",
+            );
         }
     };
 
     const blobToUint8Array = async (blob) => {
         const arrayBuffer = await blob.arrayBuffer();
         try {
-            return new Uint8Array(structuredClone(arrayBuffer));
+            return new Uint8Array(
+                structuredClone(arrayBuffer, { transfer: [arrayBuffer] }),
+            );
         } catch (e) {
             return new Uint8Array(arrayBuffer);
         }
@@ -920,13 +1135,21 @@ dayjs.extend(dayjs_plugin_utc);
 
     const downloadMediaWithFetchStream = async (mediaSrcURL) => {
         const headers = { "User-Agent": userAgent };
+        console.log(
+            `[TMD] downloadMediaWithFetchStream: フェッチ開始 URL: ${mediaSrcURL}`,
+        );
         try {
             const res = await gmFetch(mediaSrcURL, {
                 headers,
                 responseType: "blob",
             });
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
             const originalBlob = await res.blob();
+            console.log(
+                `[TMD] downloadMediaWithFetchStream: フェッチ成功。ステータス: ${res.status}, オリジナルMIME: ${originalBlob.type}, サイズ: ${(originalBlob.size / 1024 / 1024).toFixed(2)} MB`,
+            );
+
             const mediaInfo = getMediaInfoFromUrl(mediaSrcURL);
             let inferredMimeType = "";
             switch (mediaInfo.ext.toLowerCase()) {
@@ -938,7 +1161,7 @@ dayjs.extend(dayjs_plugin_utc);
                     inferredMimeType = "image/png";
                     break;
                 case "gif":
-                    inferredMimeType = "video/mp4";
+                    inferredMimeType = "image/gif";
                     break;
                 case "mp4":
                     inferredMimeType = "video/mp4";
@@ -952,11 +1175,18 @@ dayjs.extend(dayjs_plugin_utc);
                     break;
             }
             if (!originalBlob.type || originalBlob.type !== inferredMimeType) {
-                return new Blob([originalBlob], { type: inferredMimeType });
+                return originalBlob.slice(
+                    0,
+                    originalBlob.size,
+                    inferredMimeType,
+                );
             }
             return originalBlob;
         } catch (error) {
-            console.error("Error downloading media with fetch stream:", error);
+            console.error(
+                `[TMD] downloadMediaWithFetchStream: フェッチ中にエラーが発生しました URL: ${mediaSrcURL}`,
+                error,
+            );
             return null;
         }
     };
@@ -987,10 +1217,13 @@ dayjs.extend(dayjs_plugin_utc);
                 markPostAsDownloadedIndexedDB(filenameElements.postId);
                 setTimeout(() => {
                     status(btn_down, "completed");
-                    if (enableDownloadHistorykSync && !isAppleMobile)
+                    if (enableDownloadHistorySync && !isAppleMobile)
                         clickBookmarkButton(cell);
                 }, 300);
             } else {
+                console.error(
+                    "[TMD] downloadMedia: 単一ファイルダウンロードに失敗しました（Blobがnull）。",
+                );
                 status(btn_down, "failed");
                 setTimeout(() => status(btn_down, "download"), 3000);
             }
@@ -1032,10 +1265,13 @@ dayjs.extend(dayjs_plugin_utc);
                 markPostAsDownloadedIndexedDB(filenameElements.postId);
                 setTimeout(() => {
                     status(btn_down, "completed");
-                    if (enableDownloadHistorykSync && !isAppleMobile)
+                    if (enableDownloadHistorySync && !isAppleMobile)
                         clickBookmarkButton(cell);
                 }, 300);
             } else {
+                console.error(
+                    `[TMD] downloadMedia: 複数ファイルダウンロードの一部でフェッチに失敗しました。取得成功数: ${blobs.length}/${mediaCount}`,
+                );
                 status(btn_down, "failed");
                 setTimeout(() => status(btn_down, "download"), 3000);
             }
@@ -1056,7 +1292,7 @@ dayjs.extend(dayjs_plugin_utc);
 
         let btn_bookmark = btn_share.previousElementSibling;
         let isBookmarked = false;
-        if (enableDownloadHistorykSync) {
+        if (enableDownloadHistorySync) {
             if (btn_bookmark) {
                 const bookmarkButtonTestId = btn_bookmark.querySelector(
                     'button[data-testid="bookmark"], button[data-testid="removeBookmark"]',
@@ -1072,9 +1308,9 @@ dayjs.extend(dayjs_plugin_utc);
         const lang = getCurrentLanguage();
         if (btn_down.querySelector("button"))
             btn_down.querySelector("button").title =
-                lang === "ja"
-                    ? "画像と動画をダウンロード"
-                    : "Download images and videos";
+                lang === "ja" ? "画像と動画をダウンロード" : (
+                    "Download images and videos"
+                );
 
         btn_down.querySelector("svg").innerHTML = `
             <g class="download"><path d="M12 16 17.7 10.3 16.29 8.88 13 12.18 V2.59 h-2 v9.59 L7.7 8.88 6.29 10.3 Z M21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z" fill="currentColor" stroke="currentColor" stroke-width="0.20" stroke-linecap="round" /></g>
@@ -1090,7 +1326,7 @@ dayjs.extend(dayjs_plugin_utc);
         if (filenameElements) {
             if (downloadedPostsCache.has(filenameElements.postId)) {
                 status(btn_down, "completed");
-            } else if (enableDownloadHistorykSync && isBookmarked) {
+            } else if (enableDownloadHistorySync && isBookmarked) {
                 status(btn_down, "completed");
                 markPostAsDownloadedIndexedDB(filenameElements.postId);
             }
@@ -1098,11 +1334,10 @@ dayjs.extend(dayjs_plugin_utc);
 
         btn_down.onclick = async () => {
             if (btn_down.classList.contains("loading")) return;
-            let buttonStateBeforeClick = btn_down.classList.contains(
-                "completed",
-            )
-                ? "completed"
-                : "download";
+            let buttonStateBeforeClick =
+                btn_down.classList.contains("completed") ?
+                    "completed"
+                :   "download";
             status(btn_down, "loading");
 
             const mainTweetUrl = getMainTweetUrl(cell);
@@ -1111,13 +1346,16 @@ dayjs.extend(dayjs_plugin_utc);
                 cell,
             );
             if (!filenameElements) {
+                console.error(
+                    "[TMD] btn_down.onclick: ツイート情報 (postId) の取得に失敗しました。",
+                );
                 alert("ツイート情報を取得できませんでした。");
                 status(btn_down, "download");
                 return;
             }
 
             if (
-                enableDownloadHistorykSync &&
+                enableDownloadHistorySync &&
                 buttonStateBeforeClick !== "completed"
             ) {
                 const isAlreadyBookmarked = await checkBookmarkStatus(
@@ -1143,6 +1381,9 @@ dayjs.extend(dayjs_plugin_utc);
                 ...mediaData.videoURLs,
             ];
             if (mediaUrls.length === 0) {
+                console.warn(
+                    "[TMD] btn_down.onclick: 抽出されたメディアURLが0件です。ダウンロードを中断します。",
+                );
                 alert(getNoImageMessage());
                 status(btn_down, "download");
                 return;
@@ -1162,6 +1403,8 @@ dayjs.extend(dayjs_plugin_utc);
     };
 
     const processArticles = () => {
+        injectSettingsMenu();
+
         const cells = document.querySelectorAll('[data-testid="cellInnerDiv"]');
         cells.forEach((cell) => {
             const mainTweet = cell.querySelector(
@@ -1180,9 +1423,15 @@ dayjs.extend(dayjs_plugin_utc);
         });
     };
 
-    const observer = new MutationObserver(processArticles);
+    let processTimeout = null;
+    const debouncedProcessArticles = () => {
+        clearTimeout(processTimeout);
+        processTimeout = setTimeout(processArticles, 100);
+    };
+
+    const observer = new MutationObserver(debouncedProcessArticles);
     observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener("load", processArticles);
-    window.addEventListener("popstate", processArticles);
-    window.addEventListener("hashchange", processArticles);
+    window.addEventListener("load", debouncedProcessArticles);
+    window.addEventListener("popstate", debouncedProcessArticles);
+    window.addEventListener("hashchange", debouncedProcessArticles);
 })();
