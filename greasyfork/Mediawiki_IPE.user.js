@@ -16,6 +16,8 @@
 (function () {
     "use strict";
 
+    // FIXME: 此脚本暂时不能正常使用.
+
     const w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
 
     const STORAGE_KEY = "ipe.enabledSites";
