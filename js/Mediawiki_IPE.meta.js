@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mediawiki IPE
 // @namespace    https://github.com/smalllqiang
-// @version      0.1.0
+// @version      0.1.1
 // @description  Mediawiki使用IPE工具
 // @author       smalllqiang
 // @match        *://*/*

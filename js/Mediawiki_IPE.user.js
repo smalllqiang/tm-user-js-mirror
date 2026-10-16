@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mediawiki IPE
 // @namespace    https://github.com/smalllqiang
-// @version      0.1.0
+// @version      0.1.1
 // @description  Mediawiki使用IPE工具
 // @author       smalllqiang
 // @match        *://*/*
@@ -20,13 +20,7 @@
     const w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
 
     const STORAGE_KEY = "ipe.enabledSites";
-    const DEFAULT_SITES = [
-        "mediawiki.org",
-        "moegirl.org.cn",
-        "thwiki.cc",
-        "newmoon.click",
-        "thonly.cc",
-    ];
+    const DEFAULT_SITES = ["mediawiki.org", "moegirl.org.cn", "thwiki.cc"];
 
     function getEnabledSites() {
         let list = GM_getValue(STORAGE_KEY, null);
