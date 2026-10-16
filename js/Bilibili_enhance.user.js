@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Enhance
 // @namespace    https://github.com/smalllqiang
-// @version      0.7.3
+// @version      0.7.4
 // @description  Bilibili頁面淨化
 // @author       sq
 // @match        https://www.bilibili.com/
@@ -36,25 +36,43 @@
 
     // 以下是CSS Selector
     const headerSelector = {
-        remove: ["div.vip-entry-containter"], // 鼠標放在右上角用戶頭像彈出的東西裏大會員續費提示
+        remove: [
+            // 鼠標放在右上角用戶頭像彈出的東西裏大會員續費提示
+            "div.vip-entry-containter",
+        ],
         hideVisibility: [
             // 右上大會員
             "div.vip-wrap",
             "div.vip-entry",
-            //頂部左側內容
+            // 頂部左側內容
             "div.left-entry",
         ],
-        hideDisplay: ["div.trending"], // 搜索欄熱榜
-        monitor: ["div.trending", "div.vip-entry-containter"], // div.trending:搜索欄熱榜  div.vip-entry-containter:鼠標放在右上角用戶頭像彈出的東西裏大會員續費提示
+        hideDisplay: [
+            // 搜索欄熱榜
+            "div.trending",
+        ],
+        monitor: [
+            // 搜索欄熱榜
+            "div.trending",
+            // 鼠標放在右上角用戶頭像彈出的東西裏大會員續費提示
+            "div.vip-entry-containter",
+        ],
     };
     const mainPageSelector = {
         remove: [
             ...headerSelector.remove,
-            "main.bili-feed4-layout", // 主內容流
-            "div.header-channel", // 往下滑後頂部會出現的欄目
-            "div.palette-button-outer.palette-feed4", // 右下一些按鈕
-            "div.right-channel-container", // 下方右側內容
-            "div.palette-button-adcard.is-bottom", // 下方卡片广告
+            // 主內容流
+            "main.bili-feed4-layout",
+            // 往下滑後頂部會出現的欄目
+            "div.header-channel",
+            // 右下一些按鈕
+            "div.palette-button-outer.palette-feed4",
+            // 下方右側內容
+            "div.right-channel-container",
+            // 下方卡片广告
+            "div.palette-button-adcard.is-bottom",
+            // adblock提示
+            "div.adblock-tips",
         ],
         hideVisibility: [...headerSelector.hideVisibility],
         hideDisplay: [...headerSelector.hideDisplay],
@@ -64,23 +82,28 @@
         remove: [...headerSelector.remove],
         hideVisibility: [
             ...headerSelector.hideVisibility,
+            // 右邊欄社區中心 熱搜
             "aside.right",
+            // 右側小按鈕"回到舊版"
             "div.bili-dyn-sidebar",
-        ], // 右邊欄社區中心,熱搜  右側小按鈕"回到舊版"
+        ],
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
     };
     const videoPageSelector = {
         remove: [
             ...headerSelector.remove,
+            // 右側彈幕盒子下的小廣告
             "div.video-card-ad-small",
             "div#slide_ad",
             "div.slide-ad-exp",
+            // tag下方 評論上方的廣告
             "div.ad-report.left-banner",
             "div.strip-ad.left-banner",
+            // 推薦列表下的小盒子
             "div.ad-report.right-bottom-banner",
             "div.ad-floor-exp.right-bottom-banner",
-        ], // div.video-card-ad-small,div#slide_ad,div.slide-ad-exp:右側彈幕盒子下的小廣告 div.ad-report.left-banner, div.strip-ad.left-banner: tag下方 評論上方的廣告  div.ad-report.right-bottom-banner div.ad-floor-exp.right-bottom-banner: 推薦列表下的小盒子
+        ],
         hideVisibility: [...headerSelector.hideVisibility],
         hideDisplay: [...headerSelector.hideDisplay],
         monitor: [...headerSelector.monitor],
